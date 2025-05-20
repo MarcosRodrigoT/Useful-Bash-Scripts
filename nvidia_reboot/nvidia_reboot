@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+systemctl stop ollama
+systemctl stop gdm
+
+modprobe -r nvidia_drm
+modprobe -r nvidia_uvm
+modprobe -r nvidia
+
+modprobe nvidia
+
+systemctl start ollama
