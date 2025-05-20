@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+# Usage check
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 /path/to/project [--exclude dir1,dir2,...]"
+    exit 1
+fi
+
+PROJECT_PATH="$1"
+shift
+
+# Parse exclude directories
+EXCLUDE_DIRS=""
+if [ "$1" = "--exclude" ]; then
+    shift
+    EXCLUDE_DIRS="$1"
+fi
+
+# Convert comma-separated excludes to array
+IFS=',' read -ra EXCLUDES <<< "$EXCLUDE_DIRS"
+
+# Generate exclude pattern for 'tree'
+TREE_EXCLUDE=$(IFS='|'; echo "${EXCLUDES[*]}")
+
+# Show project directory structure
+# We'll use the -I pattern for tree, but be aware that it won't exclude nested paths
+# if they don't match the EXACT pattern. You could also use multiple patterns separated by |
+echo "========================================================="
+echo "Project directory structure"
+echo "========================================================="
+tree -I "$TREE_EXCLUDE" "$PROJECT_PATH"
+
+# Supported text file extensions (add more if needed)
+TEXT_EXTENSIONS="\\.py$|\\.txt$|\\.md$|\\.json$|\\.csv$|\\.yaml$|\\.yml$|\\.xml$|\\.sh$|\\.cfg$|\\.ini$|\\.log$|Dockerfile$|Makefile$|\\.js$|\\.css$|\\.html$"
+
+# Build prune arguments for find
+# We use -wholename to exclude ANY path containing the exclude pattern
+PRUNE_ARGS=()
+for dir in "${EXCLUDES[@]}"; do
+    # Exclude anything that has "$dir" anywhere after a slash
+    # e.g. if dir="venv", it excludes /whatever/venv and /whatever/venv/... recursively
+    PRUNE_ARGS+=( -wholename "*/$dir*" -prune -o )
+done
+
+# Now run find with the prune logic
+# The logic is: find $PROJECT_PATH ( any -prune ) -o -type f -regex TEXT_EXTENSIONS -print
+# This ensures subdirectories with the name specified in EXCLUDES won't be descended into.
+
+find "$PROJECT_PATH" \( "${PRUNE_ARGS[@]}" -false \) -o \
+    -type f \
+    -regextype posix-extended \
+    -regex ".*($TEXT_EXTENSIONS)" \
+    -print | while read -r file; do
+    echo
+    echo "========================================================="
+    echo "${file#$PROJECT_PATH/}"
+    echo "========================================================="
+    cat "$file"
+done
