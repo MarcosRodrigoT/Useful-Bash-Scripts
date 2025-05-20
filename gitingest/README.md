@@ -36,6 +36,8 @@ my_project/dir2/file2.txt
 This is file 2
 ```
 
+---
+
 You can also exclude specific sub-directories (useful for directories such as `venv`, `__pycache__`, etc.):
 
 ```bash

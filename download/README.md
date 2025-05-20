@@ -24,6 +24,8 @@ marcos@MARCOS-LAPTOP /tmp $ download atenea /tmp/file.txt
 
 The file will automatically download to your `$DOWNLOADS` directory.
 
+---
+
 To download multiple files or directories you can run:
 
 ```bash
