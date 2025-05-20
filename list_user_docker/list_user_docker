@@ -1,0 +1,112 @@
+#!/bin/bash
+
+echo "Results might not be accurate, take them with a piece of salt (Marcos)."
+
+# Define ANSI color codes for colored output
+BLUE='\033[1;34m'
+GREEN='\033[1;32m'
+RED='\033[1;31m'
+NC='\033[0m'  # No color
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+  echo "Error: Docker is not installed."
+  exit 1
+fi
+
+# Get the list of all Docker containers with IDs and names
+containers=$(docker ps -a --format '{{.ID}} {{.Names}}')
+
+# Check if there are any containers
+if [ -z "$containers" ]; then
+  echo "No Docker containers found."
+  exit 0
+fi
+
+# Create an associative array to map container IDs to their user names
+declare -A container_user_map
+
+# Get the list of human users from /etc/passwd
+human_users=$(awk -F: '{if ($3 >= 1000 && $3 < 60000) print $1}' /etc/passwd)
+
+# Function to find a real user from bash history
+find_user_from_history() {
+  local container_image="$1"
+  potential_users=()
+
+  for user in $human_users; do
+    history_file="/home/$user/.bash_history"
+
+    if [ -f "$history_file" ]; then
+      # Search for docker run commands that include the container image
+      if grep -q "docker run .*${container_image}" "$history_file"; then
+        potential_users+=("$user")
+      fi
+    fi
+  done
+
+  # If multiple users are found, indicate ambiguity
+  if [ ${#potential_users[@]} -gt 1 ]; then
+    echo "${potential_users[@]}"
+  elif [ ${#potential_users[@]} -eq 1 ]; then
+    echo "${potential_users[0]}"
+  else
+    echo ""
+  fi
+}
+
+# Loop through each container
+while read -r container; do
+  container_id=$(echo "$container" | awk '{print $1}')
+  container_name=$(echo "$container" | awk '{print $2}')
+
+  # Get the PID of the container
+  pid=$(docker inspect --format '{{.State.Pid}}' "$container_id")
+
+  # Determine the initial user name based on the PID
+  if [ "$pid" -eq 0 ]; then
+    user_name="Unknown (Container Stopped or Exited)"
+  else
+    # Get the user who owns this process
+    user_name=$(ps -o user= -p "$pid")
+  fi
+
+  # If user is root or unknown, check mounted volumes for user information
+  if [ "$user_name" == "root" ] || [ "$user_name" == "Unknown (Container Stopped or Exited)" ]; then
+    # Check mounted volumes for user directories
+    mounts=$(docker inspect --format '{{.Mounts}}' "$container_id")
+    real_user=$(echo "$mounts" | grep -oE '/home/[^/]+/' | cut -d'/' -f3 | sort -u)
+
+    if [ -n "$real_user" ]; then
+      user_name="$real_user"
+    else
+      # If no user is found, search bash history
+      container_image=$(docker inspect --format '{{.Config.Image}}' "$container_id")
+      bash_users=$(find_user_from_history "$container_image")
+
+      # If ambiguity, tag with "(?)"
+      if [ -n "$bash_users" ]; then
+        potential_users_list=($(echo "$bash_users" | awk '{print $1}'))
+
+        if [ ${#potential_users_list[@]} -gt 1 ]; then
+          user_name="${potential_users_list[0]}(?)"
+        elif [ ${#potential_users_list[@]} -eq 1 ]; then
+          user_name="${potential_users_list[0]}"
+        fi
+      fi
+    fi
+  fi
+
+  # Store the mapping between container ID, name, and user name
+  container_user_map["$container_id"]="${container_name} $user_name"
+done <<< "$containers"
+
+# Output the container name, ID, and corresponding user with colorization
+for container_id in "${!container_user_map[@]}"; do
+  container_info="${container_user_map[$container_id]}"
+  container_name=$(echo "$container_info" | awk '{print $1}')
+  user_name=$(echo "$container_info" | awk '{print $2}')
+
+  # Use blue for container name, green for container ID, and red for user name
+  echo -e "${BLUE}Container name: $container_name${NC} with ${GREEN}Container ID: $container_id${NC} belongs to ${RED}User: $user_name${NC}"
+done
