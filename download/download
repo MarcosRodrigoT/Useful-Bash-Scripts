@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+
+set -euo pipefail
+
+##############################################################################
+# 1. Sanity-check arguments & environment
+##############################################################################
+if (( $# < 2 )); then
+    printf 'Usage: %s <host> <remote_path> [remote_path …]\n' "$(basename "$0")" >&2
+    exit 1
+fi
+
+remote_host=$1
+shift                           # $@ now holds the list of paths
+
+if [[ ! -d $DOWNLOADS ]]; then
+    printf '✖  DOWNLOADS directory "%s" does not exist.\n' "$DOWNLOADS" >&2
+    exit 1
+fi
+
+##############################################################################
+# 2. Common SSH options (silence X11 and a couple of other things)
+##############################################################################
+SSH_OPTS=(-o ForwardX11=no -o ForwardAgent=no)
+
+##############################################################################
+# 3. Make sure we can reach the host quickly before looping
+##############################################################################
+if ! ssh "${SSH_OPTS[@]}" -o BatchMode=yes -o ConnectTimeout=3 \
+      "$remote_host" true 2>/dev/null; then
+    printf '✖  Cannot connect to "%s" via SSH.\n' "$remote_host" >&2
+    exit 1
+fi
+
+##############################################################################
+# 4. Copy each requested item
+##############################################################################
+for path in "$@"; do
+    if ssh "${SSH_OPTS[@]}" "$remote_host" test -d "$path"; then
+        printf '↘ Copying directory %s…\n' "$path"
+        scp "${SSH_OPTS[@]}" -rqCp "$remote_host:$path" "$DOWNLOADS"/
+    else
+        printf '↘ Copying file %s…\n' "$path"
+        scp "${SSH_OPTS[@]}" -qCp "$remote_host:$path" "$DOWNLOADS"/
+    fi
+done
+
+printf '✓ All done. Files are in %s\n' "$DOWNLOADS"

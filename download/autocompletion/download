@@ -1,0 +1,43 @@
+# ---------- Bash-completion for “download” ----------
+_download()
+{
+    local cur prev words cword
+    _init_completion -n : || return
+    local host=${words[1]}
+
+    # ── 1. First argument → SSH hosts
+    if [[ $cword -eq 1 ]]; then
+        _known_hosts_real -a "$cur"
+        return
+    fi
+
+    # ── 2. Make sure we have scp’s helper
+    if [[ $(type -t _scp_remote_files) != function ]]; then
+        for f in /usr/share/bash-completion/completions/{scp,ssh} \
+                 /usr/share/bash-completion/lib/*ssh; do
+            [[ -r $f ]] && . "$f" && break
+        done
+    fi
+    [[ $(type -t _scp_remote_files) != function ]] && return
+
+    # ── 3. Pretend the word is  host:/path  so the helper understands it
+    local save_cur=$cur
+    cur="${host}:${cur}"
+    _scp_remote_files                    # fills COMPREPLY
+
+    # ── 4. Strip host: prefix *and* the helper’s extra space
+    local i
+    for i in "${!COMPREPLY[@]}"; do
+        COMPREPLY[$i]=${COMPREPLY[$i]#${host}:}   # remove host:
+        COMPREPLY[$i]=${COMPREPLY[$i]% }          # drop trailing space, if any
+    done
+    cur=$save_cur
+
+    # ── 5. If we completed a directory (single match ending with /) keep cursor inside
+    if [[ ${#COMPREPLY[@]} -eq 1 && ${COMPREPLY[0]} == */ ]]; then
+        compopt -o nospace
+    fi
+}
+
+complete -F _download download
+
