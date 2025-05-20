@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Check if a username is provided as an argument
+if [ $# -eq 0 ]; then
+  echo "Usage: $0 <username>"
+  exit 1
+fi
+
+# Get the username from the argument
+username="$1"
+
+# Check if the user exists in the system
+if ! id "$username" &> /dev/null; then
+  echo "Error: User '$username' not found."
+  exit 1
+fi
+
+# Retrieve the user ID
+user_id=$(id -u "$username")
+
+# Create an associative array to map DISPLAY variables to their process IDs
+declare -A display_pid_map
+
+# Get all the process IDs for the given user
+pids=$(ps -u "$user_id" -o pid=)
+
+# Extract the environment variables from each process and get DISPLAY variables
+for pid in $pids; do
+  # Get the environment variables from /proc/PID/environ
+  env_vars=$(sudo cat "/proc/$pid/environ" 2> /dev/null | tr '\0' '\n')
+
+  # Get the DISPLAY values from the environment variables
+  display_values=$(echo "$env_vars" | grep "^DISPLAY=")
+
+  # Store the process ID for each DISPLAY variable
+  for display in $display_values; do
+    display_pid_map["$display"]+="${pid} "
+  done
+done
+
+# Output the DISPLAY variables with their associated process IDs
+for display in "${!display_pid_map[@]}"; do
+  # Get associated PIDs for the display
+  pids=$(echo "${display_pid_map[$display]}" | tr ' ' ',')
+
+  # Print the DISPLAY variable with its corresponding PIDs
+  echo "$display -> PIDs: $pids"
+done
