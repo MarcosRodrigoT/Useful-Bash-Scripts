@@ -16,7 +16,7 @@ To run this command, simply:
 download remote_host file
 ```
 
-```text
+```bash
 marcos@MARCOS-LAPTOP /tmp $ download atenea /tmp/file.txt
 ↘ Copying file /tmp/file.txt…
 ✓ All done. Files are in /mnt/c/Users/marco/Downloads/
@@ -32,7 +32,7 @@ To download multiple files or directories you can run:
 download remote_host file1 file2 dir1
 ```
 
-```text
+```bash
 marcos@MARCOS-LAPTOP /tmp $ download atenea /tmp/file.txt /tmp/file1.txt /tmp/file2.txt /tmp/dir1/
 ↘ Copying file /tmp/file.txt…
 ↘ Copying file /tmp/file1.txt…

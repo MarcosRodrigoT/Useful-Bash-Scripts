@@ -12,7 +12,7 @@ To run this command, simply:
 gitingest my_project
 ```
 
-```text
+```bash
 marcos@MARCOS-LAPTOP /tmp $ gitingest my_project/
 =========================================================
 Project directory structure
@@ -44,7 +44,7 @@ You can also exclude specific sub-directories (useful for directories such as `v
 gitingest my_project/ --exclude dir1,dir2
 ```
 
-```text
+```bash
 marcos@MARCOS-LAPTOP /tmp $ gitingest my_project/ --exclude dir1,dir2
 =========================================================
 Project directory structure
