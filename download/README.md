@@ -13,7 +13,7 @@ export DOWNLOADS='/mnt/c/Users/marco/Downloads/'
 To run this command, simply:
 
 ```bash
-download remote_host /tmp/file.txt
+download remote_host file
 ```
 
 ```text
@@ -29,7 +29,7 @@ The file will automatically download to your `$DOWNLOADS` directory.
 To download multiple files or directories you can run:
 
 ```bash
-download remote_host /tmp/file1.txt /tmp/file2.txt /tmp/dir1
+download remote_host file1 file2 dir1
 ```
 
 ```text
